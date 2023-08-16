@@ -1,38 +1,108 @@
-.App {
-  text-align: center;
+* {
+  margin: 0;
+  padding: 0;
+}
+.tasks-screen {
+  display: flex;
+  padding: 1em;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.add-task-dialog {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0px 0px 1.5em rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
+  min-width: 450px;
+  border-radius: 6px;
+  padding: 2em;
+  gap: 1em;
+  visibility: hidden;
+  background-color: white;
+
+}
+
+.dialog-title {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+}
+
+.close-btn {
+  background-color: rgba(0, 0, 0, 0.02);
+  padding: 0.4em 0.8em;
+  display: flex;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
+  align-items: center;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 1.1rem;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.form-control {
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.form-input {
+  padding: 1em;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  outline-color: transparent;
+  transition: all 0.2s;
+}
+
+.form-input:focus {
+  outline: 3px solid rgb(239, 246, 248);
+}
+
+input[type="submit"] {
+  padding: 0.8em 1.6em;
+  background-color: blue;
   color: white;
+  font-size: 1.2rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer; 
+  margin-top: 1.5em;
 }
 
-.App-link {
-  color: #61dafb;
+.message-card {
+  color: white;
+  position: absolute;
+  transform: translate(-50%, 0);
+  left: 50%;
+  top: 0;
+  margin: 1em;
+  padding: 1em;
+  font-size: 1.2em;
+  visibility: hidden;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.visible {
+  visibility: visible;
+}
+
+.error {
+  background-color: red;
+}
+
+.info {
+  background-color: blue;
+  
 }
