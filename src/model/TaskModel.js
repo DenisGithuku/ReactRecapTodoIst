@@ -18,7 +18,8 @@ export const FirebaseConverter = {
             completed: taskModel.completed
         }
     },
-    fromFirestore: (data, options) => {
+    fromFirestore: (snapshot, options) => {
+        const data = snapshot.data(options)
         return new TaskModel(
             data.id,
             data.title,

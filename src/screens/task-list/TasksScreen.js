@@ -8,8 +8,9 @@ import {
   collection,
   doc,
   addDoc,
-  setDoc
+  setDoc,
 } from "firebase/firestore";
+import TaskComponent from "./components/TaskComponent";
 
 class TasksScreen extends Component {
   constructor(props) {
@@ -17,10 +18,13 @@ class TasksScreen extends Component {
     this.db = undefined;
     this.state = {
       tasks: [],
-      dialogIsVisible: false,
+      dialog: {
+        isNewTask: true,
+        dialogIsVisible: false,
+      },
       userMessage: {
         message: "",
-        isError: false
+        isError: false,
       },
       new_task: {
         title: "",
@@ -34,9 +38,11 @@ class TasksScreen extends Component {
     this.updateTask = this.updateTask.bind(this);
     this.handleTitleChange = this.handleTitleChange.bind(this);
     this.handleDescriptionChange = this.handleDescriptionChange.bind(this);
-    this.onSubmitTask = this.onSubmitTask.bind(this)
-    this.dismissMessage = this.dismissMessage.bind(this)
-    this.toggleDialog = this.toggleDialog.bind(this)
+    this.onSubmitTask = this.onSubmitTask.bind(this);
+    this.dismissMessage = this.dismissMessage.bind(this);
+    this.toggleDialog = this.toggleDialog.bind(this);
+    this.onEdit = this.onEdit.bind(this);
+    this.onToggleComplete = this.onToggleComplete.bind(this)
   }
 
   componentDidMount() {
@@ -52,13 +58,16 @@ class TasksScreen extends Component {
         description: "",
         completed: false,
       },
-    })
+    });
   }
 
   toggleDialog() {
     this.setState({
-      dialogIsVisible: !this.state.dialogIsVisible
-    })
+      dialog: {
+        isNewTask: true,
+        dialogIsVisible: !this.state.dialog.dialogIsVisible,
+      },
+    });
   }
 
   async addTask(db) {
@@ -72,10 +81,10 @@ class TasksScreen extends Component {
         Date.now(),
         completed
       );
-      await setDoc(taskRef, FirebaseConverter.toFirestore(task))
-      this.showUserMessage("Added new task successfully", false)
-      this.toggleDialog()
-      this.getTasks(this.db)
+      await setDoc(taskRef, FirebaseConverter.toFirestore(task));
+      this.showUserMessage("Added new task successfully", false);
+      this.toggleDialog();
+      this.getTasks(this.db);
     } catch (err) {
       console.log(err);
     }
@@ -83,13 +92,14 @@ class TasksScreen extends Component {
 
   async getTasks(db) {
     try {
-      const taskSnapshot = await getDocs(collection(db, "tasks"))
+      const taskSnapshot = await getDocs(collection(db, "tasks"));
       const tasks = taskSnapshot.docs.map((data, options) => {
-        return FirebaseConverter.fromFirestore(data,options)
-      })
+        return FirebaseConverter.fromFirestore(data, options);
+      });
       this.setState({
         tasks: tasks,
       });
+      console.log(this.state.tasks);
     } catch (err) {
       console.log(err);
     }
@@ -114,54 +124,117 @@ class TasksScreen extends Component {
   showUserMessage(message, isError) {
     const userMessage = {
       message,
-      isError
-    }
+      isError,
+    };
     this.setState({
       userMessage: userMessage,
-    })
+    });
 
     setTimeout(() => {
-      this.dismissMessage()
-    }, 4000)
+      this.dismissMessage();
+    }, 4000);
   }
 
   dismissMessage() {
     this.setState({
       userMessage: {
         message: "",
-        isError: false
-      }
-    })
+        isError: false,
+      },
+    });
   }
 
   onSubmitTask(event) {
-    event.preventDefault()
+    event.preventDefault();
     const formIsValid =
       this.state.new_task.title.trim().length > 0 &&
       this.state.new_task.description.trim().length > 0;
 
     if (!formIsValid) {
-      this.showUserMessage("Title or description cannot be empty", true)
-      return
+      this.showUserMessage("Title or description cannot be empty", true);
+      return;
     }
-    this.addTask(this.db)
+
+    if (this.state.dialog.isNewTask) {
+      this.addTask(this.db);
+    } else {
+      this.updateTask();
+    }
   }
 
   async deleteTask() {}
 
-  async updateTask() {}
+  async updateTask() {
+    try {
+      const task = this.state.new_task;
+      const data = FirebaseConverter.toFirestore(task);
+      const taskRef = doc(this.db, "tasks", task.id);
+      await setDoc(taskRef, data);
+      this.toggleDialog();
+      this.getTasks(this.db);
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  async onToggleComplete(id) {
+    try {
+      const task = this.state.tasks.find((task) => {
+        return task.id === id ? task : undefined;
+      });
+      task.completed = !task.completed;
+      this.setState({
+        new_task: task,
+      });
+      const data = FirebaseConverter.toFirestore(task);
+      const taskRef = doc(this.db, "tasks", task.id);
+      await setDoc(taskRef, data);
+      this.getTasks(this.db)
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  onEdit(id) {
+    const task = this.state.tasks.find((task) => {
+      return task.id === id ? task : undefined;
+    });
+    this.setState({
+      new_task: task,
+      dialog: {
+        isNewTask: false,
+        dialogIsVisible: !this.state.dialog.dialogIsVisible,
+      },
+    });
+  }
 
   render() {
-    const messageType = this.state.userMessage.isError ? "error" : "info"
-    const messageCardStatus = this.state.userMessage.message.length > 0 ? "visible" : ""
-    const dialogStatus = this.state.dialogIsVisible ? "visible" : ""
+    const taskListJsx = this.state.tasks.map((task) => {
+      return (
+        <li key={task.id}>
+          <TaskComponent
+            task={task}
+            onEdit={() => this.onEdit(task.id)}
+            onDelete={() => {}}
+            onToggleComplete={() => {this.onToggleComplete(task.id)}}
+          />
+        </li>
+      );
+    });
+
+    const messageType = this.state.userMessage.isError ? "error" : "info";
+    const messageCardStatus =
+      this.state.userMessage.message.length > 0 ? "visible" : "";
+    const dialogStatus = this.state.dialog.dialogIsVisible ? "visible" : "";
     return (
       <div className="tasks-screen">
         <button onClick={this.toggleDialog}>Add Task</button>
         <div className={`add-task-dialog ${dialogStatus}`}>
           <div className="dialog-title">
             <h2>Add new task</h2>
-            <span onClick={this.toggleDialog} className="close-btn">x</span>
+            <span onClick={this.toggleDialog} className="close-btn">
+              x
+            </span>
           </div>
           <div className="dialog-body">
             <form onSubmit={this.onSubmitTask}>
@@ -196,7 +269,7 @@ class TasksScreen extends Component {
         <div className={`message-card ${messageType} ${messageCardStatus}`}>
           <span>{this.state.userMessage.message}</span>
         </div>
-        <h2>There are {this.state.tasks.length} tasks</h2>
+        <ul type="none">{taskListJsx}</ul>
       </div>
     );
   }

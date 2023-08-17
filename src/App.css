@@ -4,7 +4,10 @@
 }
 .tasks-screen {
   display: flex;
-  padding: 1em;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  height: 100vh;
 }
 
 .add-task-dialog {
@@ -13,7 +16,7 @@
   top: 50%;
   transform: translate(-50%, -50%);
   border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0px 0px 1.5em rgba(0, 0, 0, 0.03);
+  box-shadow: 0px 0px 10em 60em rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
   min-width: 450px;
@@ -22,7 +25,7 @@
   gap: 1em;
   visibility: hidden;
   background-color: white;
-
+  z-index: 1;
 }
 
 .dialog-title {
@@ -105,4 +108,70 @@ input[type="submit"] {
 .info {
   background-color: blue;
   
+}
+
+.task-component {
+  display: flex;
+  flex-direction: row;
+  padding: 1em;
+  border: 0.5px solid rgba(0, 0, 0, 0.07);
+  border-radius: 6px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 500px;
+  margin: 1em;
+}
+
+.task-content {
+  display: flex;
+  flex-direction: column;
+  gap: .5em;
+}
+
+.task-component .left {
+  display: flex;
+  gap: 1em;
+}
+
+.action-btns {
+  display: flex;
+  gap: 1em;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  border-radius: 32em;
+  padding: .5em 1em;
+  font-size: 1.1rem;
+}
+
+.edit-btn {
+  color: blue;
+}
+
+.delete-btn {
+  color: red;
+}
+
+.edit-btn:hover {
+  background-color: rgba(25, 25, 234, 0.258);
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: rgba(231, 26, 26, 0.258);
+  color: white;
+}
+
+
+.completed {
+  background-color: rgba(205, 236, 205, 0.283);
+  border: 1px solid rgb(167, 238, 167);
+  text-decoration: line-through;
+}
+
+.pending {
+  background-color: rgba(244, 244, 245, 0.066);
+  border: 1px solid rgb(114, 114, 233);
 }
