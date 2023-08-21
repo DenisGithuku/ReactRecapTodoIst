@@ -7,7 +7,7 @@ const TaskComponent = ({ task, onEdit, onDelete, onToggleComplete }) => {
       <div className="left">
         <input
           type="checkbox"
-          value={task.completed}
+          checked={task.completed}
           onChange={onToggleComplete}
         />
         <div className="task-content">

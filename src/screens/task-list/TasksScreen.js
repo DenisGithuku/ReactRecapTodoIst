@@ -7,16 +7,19 @@ import {
   getDocs,
   collection,
   doc,
-  addDoc,
+  deleteDoc,
   setDoc,
 } from "firebase/firestore";
 import TaskComponent from "./components/TaskComponent";
+import FilterComponent from "./components/FilterComponent";
+import { AddTaskBtn } from "./components/AddTaskBtn";
 
 class TasksScreen extends Component {
   constructor(props) {
     super(props);
     this.db = undefined;
     this.state = {
+      category: "all",
       tasks: [],
       dialog: {
         isNewTask: true,
@@ -42,7 +45,8 @@ class TasksScreen extends Component {
     this.dismissMessage = this.dismissMessage.bind(this);
     this.toggleDialog = this.toggleDialog.bind(this);
     this.onEdit = this.onEdit.bind(this);
-    this.onToggleComplete = this.onToggleComplete.bind(this)
+    this.onToggleComplete = this.onToggleComplete.bind(this);
+    this.onChangeCategory = this.onChangeCategory.bind(this);
   }
 
   componentDidMount() {
@@ -93,9 +97,22 @@ class TasksScreen extends Component {
   async getTasks(db) {
     try {
       const taskSnapshot = await getDocs(collection(db, "tasks"));
-      const tasks = taskSnapshot.docs.map((data, options) => {
+      let tasks = taskSnapshot.docs.map((data, options) => {
         return FirebaseConverter.fromFirestore(data, options);
       });
+
+      tasks = tasks.filter((task) => {
+        let predicate = false;
+        if (this.state.category === "completed") {
+          predicate = task.completed === true;
+        } else if (this.state.category === "all") {
+          predicate = true;
+        } else if (this.state.category === "pending") {
+          predicate = task.completed !== true;
+        }
+        return predicate;
+      });
+      console.log(tasks);
       this.setState({
         tasks: tasks,
       });
@@ -162,7 +179,14 @@ class TasksScreen extends Component {
     }
   }
 
-  async deleteTask() {}
+  async deleteTask(id) {
+    try {
+      await deleteDoc(doc(this.db, "tasks", id));
+      this.getTasks(this.db);
+    } catch (err) {
+      console.log(err);
+    }
+  }
 
   async updateTask() {
     try {
@@ -189,7 +213,7 @@ class TasksScreen extends Component {
       const data = FirebaseConverter.toFirestore(task);
       const taskRef = doc(this.db, "tasks", task.id);
       await setDoc(taskRef, data);
-      this.getTasks(this.db)
+      this.getTasks(this.db);
     } catch (err) {
       console.log(err);
     }
@@ -208,6 +232,17 @@ class TasksScreen extends Component {
     });
   }
 
+  async onChangeCategory(category) {
+    try {
+      this.setState({
+        category: category,
+      });
+      await this.getTasks(this.db);
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
   render() {
     const taskListJsx = this.state.tasks.map((task) => {
       return (
@@ -215,8 +250,12 @@ class TasksScreen extends Component {
           <TaskComponent
             task={task}
             onEdit={() => this.onEdit(task.id)}
-            onDelete={() => {}}
-            onToggleComplete={() => {this.onToggleComplete(task.id)}}
+            onDelete={() => {
+              this.deleteTask(task.id);
+            }}
+            onToggleComplete={() => {
+              this.onToggleComplete(task.id);
+            }}
           />
         </li>
       );
@@ -228,7 +267,18 @@ class TasksScreen extends Component {
     const dialogStatus = this.state.dialog.dialogIsVisible ? "visible" : "";
     return (
       <div className="tasks-screen">
-        <button onClick={this.toggleDialog}>Add Task</button>
+        <div className="top-bar">
+          <AddTaskBtn onToggleDialog={this.toggleDialog} />
+          <FilterComponent
+            selectedCategory={this.state.category.replace(
+              this.state.category.charAt(0),
+              this.state.category.charAt(0).toUpperCase()
+            )}
+            onChangeCategory={(category) => {
+              this.onChangeCategory(category);
+            }}
+          />
+        </div>
         <div className={`add-task-dialog ${dialogStatus}`}>
           <div className="dialog-title">
             <h2>Add new task</h2>
