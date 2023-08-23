@@ -2,22 +2,18 @@ import { Component } from "react";
 import "../../App.css";
 import FirebaseApp from "../../util/FirebaseInit";
 import { FirebaseConverter, TaskModel } from "../../model/TaskModel";
-import {
-  getFirestore,
-  getDocs,
-  collection,
-  doc,
-  deleteDoc,
-  setDoc,
-} from "firebase/firestore";
 import TaskComponent from "./components/TaskComponent";
 import FilterComponent from "./components/FilterComponent";
 import { AddTaskBtn } from "./components/AddTaskBtn";
+import TasksDataSource from "./../../data/TasksDataSource";
+import { AddTaskDialog } from "./components/AddTaskDialog";
+import { MessageCard } from "./components/MessageCard";
+import { TaskList } from "./components/TaskList";
 
 class TasksScreen extends Component {
   constructor(props) {
     super(props);
-    this.db = undefined;
+    this.taskDatasource = null;
     this.state = {
       category: "all",
       tasks: [],
@@ -37,7 +33,6 @@ class TasksScreen extends Component {
     };
     this.getTasks = this.getTasks.bind(this);
     this.addTask = this.addTask.bind(this);
-    this.deleteTask = this.deleteTask.bind(this);
     this.updateTask = this.updateTask.bind(this);
     this.handleTitleChange = this.handleTitleChange.bind(this);
     this.handleDescriptionChange = this.handleDescriptionChange.bind(this);
@@ -50,9 +45,14 @@ class TasksScreen extends Component {
   }
 
   componentDidMount() {
-    // establish connection to db
-    this.db = getFirestore(FirebaseApp);
-    this.getTasks(this.db);
+    // create reference to data source
+    this.taskDatasource = new TasksDataSource();
+    this.getTasks();
+  }
+
+  componentWillUnmount() {
+    // destroy reference to data source
+    this.taskDatasource = null;
   }
 
   clearTaskForm() {
@@ -74,51 +74,23 @@ class TasksScreen extends Component {
     });
   }
 
-  async addTask(db) {
-    try {
-      const taskRef = doc(collection(db, "tasks"));
-      const { title, description, completed } = this.state.new_task;
-      const task = new TaskModel(
-        taskRef.id,
-        title,
-        description,
-        Date.now(),
-        completed
-      );
-      await setDoc(taskRef, FirebaseConverter.toFirestore(task));
-      this.showUserMessage("Added new task successfully", false);
-      this.toggleDialog();
-      this.getTasks(this.db);
-    } catch (err) {
-      console.log(err);
-    }
+  addTask() {
+    const { title, description, completed } = this.state.new_task;
+    const task = new TaskModel(title, description, Date.now(), completed);
+    this.taskDatasource.addTask(task);
+    this.showUserMessage("Added new task successfully", false);
+    this.toggleDialog();
   }
 
-  async getTasks(db) {
+  async getTasks() {
     try {
-      const taskSnapshot = await getDocs(collection(db, "tasks"));
-      let tasks = taskSnapshot.docs.map((data, options) => {
-        return FirebaseConverter.fromFirestore(data, options);
-      });
-
-      tasks = tasks.filter((task) => {
-        let predicate = false;
-        if (this.state.category === "completed") {
-          predicate = task.completed === true;
-        } else if (this.state.category === "all") {
-          predicate = true;
-        } else if (this.state.category === "pending") {
-          predicate = task.completed !== true;
-        }
-        return predicate;
-      });
-      console.log(tasks);
+      let tasks = await this.taskDatasource.getTasks(this.state.category);
       this.setState({
         tasks: tasks,
       });
-      console.log(this.state.tasks);
+      console.log(tasks)
     } catch (err) {
-      console.log(err);
+      console.log(err)
     }
   }
 
@@ -173,50 +145,27 @@ class TasksScreen extends Component {
     }
 
     if (this.state.dialog.isNewTask) {
-      this.addTask(this.db);
+      this.addTask();
     } else {
       this.updateTask();
     }
   }
 
-  async deleteTask(id) {
-    try {
-      await deleteDoc(doc(this.db, "tasks", id));
-      this.getTasks(this.db);
-    } catch (err) {
-      console.log(err);
-    }
+  updateTask() {
+    const task = this.state.new_task;
+    this.taskDatasource.updateTask(task);
+    this.toggleDialog();
+    this.getTasks(this.db);
   }
 
-  async updateTask() {
-    try {
-      const task = this.state.new_task;
-      const data = FirebaseConverter.toFirestore(task);
-      const taskRef = doc(this.db, "tasks", task.id);
-      await setDoc(taskRef, data);
-      this.toggleDialog();
-      this.getTasks(this.db);
-    } catch (err) {
-      console.log(err);
-    }
-  }
-
-  async onToggleComplete(id) {
-    try {
-      const task = this.state.tasks.find((task) => {
-        return task.id === id ? task : undefined;
-      });
-      task.completed = !task.completed;
-      this.setState({
-        new_task: task,
-      });
-      const data = FirebaseConverter.toFirestore(task);
-      const taskRef = doc(this.db, "tasks", task.id);
-      await setDoc(taskRef, data);
-      this.getTasks(this.db);
-    } catch (err) {
-      console.log(err);
-    }
+  onToggleComplete(id) {
+    const task = this.state.tasks.find((task) => {
+      return task.id === id ? task : undefined;
+    });
+    task.completed = !task.completed;
+    this.setState({
+      new_task: task,
+    });
   }
 
   onEdit(id) {
@@ -234,10 +183,12 @@ class TasksScreen extends Component {
 
   async onChangeCategory(category) {
     try {
+      
+      let tasks = await this.taskDatasource.getTasks(category);
       this.setState({
         category: category,
+        tasks: tasks,
       });
-      await this.getTasks(this.db);
     } catch (err) {
       console.log(err);
     }
@@ -251,7 +202,7 @@ class TasksScreen extends Component {
             task={task}
             onEdit={() => this.onEdit(task.id)}
             onDelete={() => {
-              this.deleteTask(task.id);
+              this.taskDatasource.deleteTask(task.id);
             }}
             onToggleComplete={() => {
               this.onToggleComplete(task.id);
@@ -279,47 +230,21 @@ class TasksScreen extends Component {
             }}
           />
         </div>
-        <div className={`add-task-dialog ${dialogStatus}`}>
-          <div className="dialog-title">
-            <h2>Add new task</h2>
-            <span onClick={this.toggleDialog} className="close-btn">
-              x
-            </span>
-          </div>
-          <div className="dialog-body">
-            <form onSubmit={this.onSubmitTask}>
-              <div className="form-control">
-                <label htmlFor="title">Title</label>
-                <input
-                  type="text"
-                  id="title"
-                  className="form-input"
-                  value={this.state.new_task.title}
-                  onChange={(event) => {
-                    this.handleTitleChange(event);
-                  }}
-                />
-              </div>
-              <div className="form-control">
-                <label htmlFor="description">Description</label>
-                <input
-                  type="text"
-                  id="description"
-                  className="form-input"
-                  value={this.state.new_task.description}
-                  onChange={(event) => {
-                    this.handleDescriptionChange(event);
-                  }}
-                />
-              </div>
-              <input type="submit" value="Save" />
-            </form>
-          </div>
-        </div>
-        <div className={`message-card ${messageType} ${messageCardStatus}`}>
-          <span>{this.state.userMessage.message}</span>
-        </div>
-        <ul type="none">{taskListJsx}</ul>
+        <AddTaskDialog
+          dialogStatus={dialogStatus}
+          onToggleDialog={this.toggleDialog}
+          onSubmitTask={this.onSubmitTask}
+          task={this.state.new_task}
+          onTitleChange={this.handleTitleChange}
+          onDescriptionChange={this.handleDescriptionChange}
+        />
+
+        <MessageCard
+          userMessage={this.state.userMessage}
+          messageType={messageType}
+          messageCardStatus={messageCardStatus}
+        />
+        <TaskList tasks={taskListJsx} />
       </div>
     );
   }
